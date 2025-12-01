@@ -335,15 +335,10 @@ def can_character_fight(character):
     Returns: True if health > 0 and not in battle
     """
     # TODO: Implement fight check
-    if character['health'] < 0:
-        return False
+    if character['health'] <= 0:
         raise CharacterDeadError("Character is dead and cannot fight.")
-        
-    else:
-        if not character.get('in_battle', False):
-            return True
-    else:
-        return False
+    if not character.get('in_battle', False):
+        return True
 
 def get_victory_rewards(enemy):
     """
