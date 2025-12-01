@@ -94,58 +94,49 @@ def create_character(name, character_class):
         'active_quests': [],
         'completed_quests': []
     }
-
+    if character["health"] <= 0:
+        raise CharacterDeadError(f"Character {name} is dead upon creation.")
     return character
 
 def save_character(character, save_directory="data/save_games"):
     """
-    Save character to file
-    
-    Filename format: {character_name}_save.txt
-    
-    File format:
-    NAME: character_name
-    CLASS: class_name
-    LEVEL: 1
-    HEALTH: 120
-    MAX_HEALTH: 120
-    STRENGTH: 15
-    MAGIC: 5
-    EXPERIENCE: 0
-    GOLD: 100
-    INVENTORY: item1,item2,item3
-    ACTIVE_QUESTS: quest1,quest2
-    COMPLETED_QUESTS: quest1,quest2
-    
-    Returns: True if successful
-    Raises: PermissionError, IOError (let them propagate or handle)
+    Saves character data to a file in a clean, consistent format.
+    Returns True if successful.
+    Raises PermissionError or IOError for file issues.
     """
-    # TODO: Implement save functionality
-    # Create save_directory if it doesn't exist
-    # Handle any file I/O errors appropriately
-    # Lists should be saved as comma-separated values
-    if not os.path.exists(save_directory):
-        os.makedirs(save_directory)
+
+    # Ensure directory exists
+    os.makedirs(save_directory, exist_ok=True)
+
+    # Build file path
     file_path = os.path.join(save_directory, f"{character['name']}_save.txt")
-    # checks if there isn't a save file, and makes one if not
+
     try:
-        with open(file_path, 'w') as f:
-            f.write(f"NAME: {character['name']}\n")
-            f.write(f"CLASS: {character['class']}\n")
-            f.write(f"LEVEL: {character['level']}\n")
-            f.write(f"HEALTH: {character['health']}\n")
-            f.write(f"MAX_HEALTH: {character['max_health']}\n")
-            f.write(f"STRENGTH: {character['strength']}\n")
-            f.write(f"MAGIC: {character['magic']}\n")
-            f.write(f"EXPERIENCE: {character['experience']}\n")
-            f.write(f"GOLD: {character['gold']}\n")
-            f.write(f"INVENTORY: {','.join(character['inventory'])}\n")
-            f.write(f"ACTIVE_QUESTS: {','.join(character['active_quests'])}\n")
-            f.write(f"COMPLETED_QUESTS: {','.join(character['completed_quests'])}\n")
+        # Convert lists into comma-separated strings safely
+        inventory_str = ",".join(character.get('inventory', []))
+        active_quests_str = ",".join(character.get('active_quests', []))
+        completed_quests_str = ",".join(character.get('completed_quests', []))
+
+        # Write file contents
+        with open(file_path, 'w', encoding='utf-8') as f:
+            f.write(f"NAME : {character['name']}\n")
+            f.write(f"CLASS : {character['class']}\n")
+            f.write(f"LEVEL : {character['level']}\n")
+            f.write(f"HEALTH : {character['health']}\n")
+            f.write(f"MAX_HEALTH : {character['max_health']}\n")
+            f.write(f"STRENGTH : {character['strength']}\n")
+            f.write(f"MAGIC : {character['magic']}\n")
+            f.write(f"EXPERIENCE : {character['experience']}\n")
+            f.write(f"GOLD : {character['gold']}\n")
+            f.write(f"INVENTORY : {inventory_str}\n")
+            f.write(f"ACTIVE_QUESTS : {active_quests_str}\n")
+            f.write(f"COMPLETED_QUESTS : {completed_quests_str}\n")
+
         return True
-    #stores character data in a text file
-    except (PermissionError, IOError) as e:
-        raise e
+
+    except (PermissionError, IOError):
+        # Re-raise so game logic can catch and display error
+        raise
 
 def load_character(character_name, save_directory="data/save_games"):
     """
@@ -172,6 +163,19 @@ def load_character(character_name, save_directory="data/save_games"):
     try:
         with open(file_path, 'r') as f:
             lines = f.readlines()
+            character = {}
+            for line in lines:
+                key = line.split(":")[0].strip()
+                value = line.split(":")[1].strip()
+                if key in ['INVENTORY', 'ACTIVE_QUESTS', 'COMPLETED_QUESTS']:
+                    character[key.lower()] = value.split(',') if value else []
+                elif key in ['LEVEL', 'HEALTH', 'MAX_HEALTH', 'STRENGTH', 'MAGIC', 'EXPERIENCE', 'GOLD']:
+                    character[key.lower()] = int(value)
+                else:
+                    character[key.lower()] = value
+        # Validate loaded character data
+        validate_character_data(character)
+        return character
     except IOError:
         raise SaveFileCorruptedError(f"Save file for {character_name} is corrupted.")
 
@@ -234,6 +238,8 @@ def gain_experience(character, xp_amount):
     # Check for level up (can level up multiple times)
     # Update stats on level up
     character['experience'] += xp_amount
+    if character['health'] <= 0:
+        raise CharacterDeadError("Cannot gain experience: character is dead.")
     while character['experience'] >= character['level'] * 100:
         character['level'] += 1
         character['max_health'] += 10
