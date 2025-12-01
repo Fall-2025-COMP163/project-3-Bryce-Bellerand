@@ -136,14 +136,15 @@ def use_item(character, item_id, item_data):
     # Apply effect to character
     # Remove item from inventory
     if item_id in character['inventory']:
-        if item_data != 'consumable':
+        if item_data['type'] != 'consumable':
             raise InvalidItemTypeError
         else:
             # Parse effect and apply to character
             effect = item_data.get('effect', '')
             if effect:
-                stat, value = effect.split(':')
-                character['stats'][stat] += int(value)
+                stat = effect.split(':')[0]
+                value = effect.split(':')[1]
+                character[stat] += int(value)
             # Remove item from inventory
             character['inventory'].remove(item_id)
             return f"Used {item_id}."
@@ -177,12 +178,14 @@ def equip_weapon(character, item_id, item_data):
     # Parse effect and apply to character stats
     # Store equipped_weapon in character dictionary
     # Remove item from inventory
-    if character['equipped_weapon']:
-        old_weapon = unequip_weapon(character)
-        character['equipped_weapon'] = item_id
-        character['inventory'].remove(item_id)
-        character['inventory'].append(old_weapon)
-        return f"Equipped {item_id}."
+    character['equipped_weapon'] = item_id
+    character['inventory'].remove(item_id)
+    weapon_effect = item_data.get('effect', '')
+    if weapon_effect:
+        stat = weapon_effect.split(':')[0]
+        value = weapon_effect.split(':')[1]
+        character[stat] += int(value)
+    return f"Equipped {item_id}."
 
 def equip_armor(character, item_id, item_data):
     """
@@ -281,7 +284,14 @@ def purchase_item(character, item_id, item_data):
     # Check if inventory has space
     # Subtract gold from character
     # Add item to inventory
-    
+    cost = item_data.get('cost', 0)
+    if character['gold'] < cost:
+        raise InsufficientResourcesError("Not enough gold to purchase item.")
+    if len(character['inventory']) >= MAX_INVENTORY_SIZE:
+        raise InventoryFullError("Inventory is full.")
+    character['gold'] -= cost
+    character['inventory'].append(item_id)
+    return True
 
 def sell_item(character, item_id, item_data):
     """
