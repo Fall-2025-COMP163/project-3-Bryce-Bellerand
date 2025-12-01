@@ -50,22 +50,25 @@ def accept_quest(character, quest_id, quest_data_dict):
     # Check not already completed
     # Check not already active
     # Add to character['active_quests']
-    acceptable_quests = []
-    for qid in quest_data_dict:
-        quest = quest_data_dict[qid]
-        if character['level'] >= quest['required_level']:
-            prereq = quest['prerequisite']
-            if prereq == "NONE" or prereq in character['completed_quests']:
-                if qid not in character['completed_quests'] and qid not in character['active_quests']:
-                    acceptable_quests.append(qid)
+    if quest_id not in quest_data_dict:
+        raise QuestNotFoundError(f"Quest ID '{quest_id}' not found.")
+    quest = quest_data_dict[quest_id]
+    if character['level'] < quest['required_level']:
+        raise InsufficientLevelError(f"Character level {character['level']} is below required level {quest['required_level']}.")
 
-    if not acceptable_quests:
-        return False
+    # Check prerequisite (if not "NONE")
+    prereq = quest['prerequisite']
+    if prereq != "NONE" and prereq not in character['completed_quests']:
+        raise QuestRequirementsNotMetError(f"Prerequisite quest '{prereq}' not completed.")
+
+    # Check not already completed
+    if quest_id in character['completed_quests']:
+        raise QuestAlreadyCompletedError(f"Quest ID '{quest_id}' is already completed.")
 
     # Accept the first available quest
-    quest_to_accept = acceptable_quests[0]
-    character['active_quests'].append(quest_to_accept)
-    return True
+    
+    character['active_quests'].append(quest_id)
+    
 
 def complete_quest(character, quest_id, quest_data_dict):
     """
